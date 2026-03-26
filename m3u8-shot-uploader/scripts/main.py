@@ -36,6 +36,59 @@ def require_tool(name: str) -> None:
     raise RuntimeError(f"Missing required tool: {name}")
 
 
+def get_env(env: Dict[str, str], key: str, default: str = "") -> str:
+    return env.get(key, default).strip()
+
+
+def join_url(base: str, route: str) -> str:
+    base = base.rstrip("/")
+    route = route.strip()
+    if not route:
+        return base
+    if route.startswith("http://") or route.startswith("https://"):
+        return route
+    return f"{base}/{route.lstrip('/')}"
+
+
+def resolve_api_url(env: Dict[str, str], url_key: str, route_key: str) -> str:
+    direct_url = get_env(env, url_key)
+    if direct_url:
+        return direct_url
+    base_url = get_env(env, "COMMON_API_BASE_URL")
+    route = get_env(env, route_key)
+    if base_url and route:
+        return join_url(base_url, route)
+    raise RuntimeError(f"{url_key} or COMMON_API_BASE_URL + {route_key} is required")
+
+
+def resolve_web_origin(env: Dict[str, str]) -> str:
+    explicit_origin = get_env(env, "WEB_ORIGIN")
+    if explicit_origin:
+        return explicit_origin
+    base_url = get_env(env, "COMMON_API_BASE_URL")
+    if not base_url:
+        return ""
+    parsed = urllib.parse.urlparse(base_url)
+    if not parsed.scheme or not parsed.netloc:
+        return ""
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def resolve_referer(env: Dict[str, str], key: str) -> str:
+    explicit = get_env(env, key)
+    if explicit:
+        return explicit
+    origin = resolve_web_origin(env)
+    return f"{origin}/" if origin else ""
+
+
+def resolve_origin(env: Dict[str, str], key: str) -> str:
+    explicit = get_env(env, key)
+    if explicit:
+        return explicit
+    return resolve_web_origin(env)
+
+
 def parse_video_info(m3u8_url: str) -> Tuple[str, str]:
     parsed = urllib.parse.urlparse(m3u8_url)
     path = parsed.path or ""
@@ -155,14 +208,12 @@ def send_request(url: str, method: str, headers: Dict[str, str], body: bytes, ti
 
 
 def upload_files(files: List[Path], env: Dict[str, str]) -> Dict:
-    upload_url = env.get("UPLOAD_API_URL", "").strip()
-    if not upload_url:
-        raise RuntimeError("UPLOAD_API_URL is required")
-    field_name = env.get("UPLOAD_FIELD_NAME", "upload[]")
-    cookie = env.get("UPLOAD_COOKIE", "").strip()
-    referer = env.get("UPLOAD_REFERER", "").strip()
-    origin = env.get("UPLOAD_ORIGIN", "").strip()
-    timeout = int(env.get("REQUEST_TIMEOUT", "120"))
+    upload_url = resolve_api_url(env, "UPLOAD_API_URL", "UPLOAD_API_ROUTE")
+    field_name = get_env(env, "UPLOAD_FIELD_NAME", "upload[]")
+    cookie = get_env(env, "UPLOAD_COOKIE")
+    referer = resolve_referer(env, "UPLOAD_REFERER")
+    origin = resolve_origin(env, "UPLOAD_ORIGIN")
+    timeout = int(get_env(env, "REQUEST_TIMEOUT", "120"))
 
     boundary = f"----OpenClawBoundary{random.randint(100000, 999999)}"
     body, content_type = build_multipart_body(field_name, files, boundary)
@@ -183,8 +234,8 @@ def upload_files(files: List[Path], env: Dict[str, str]) -> Dict:
 
 
 def default_update_payload(m3u8_value: str, file_paths: List[str], env: Dict[str, str]) -> bytes:
-    m3u8_field = env.get("UPDATE_M3U8_URL_FIELD", "m3u8Url").strip() or "m3u8Url"
-    screenshots_field = env.get("UPDATE_SCREENSHOTS_FIELD", "screenshots").strip() or "screenshots"
+    m3u8_field = get_env(env, "UPDATE_M3U8_URL_FIELD", "m3u8Url") or "m3u8Url"
+    screenshots_field = get_env(env, "UPDATE_SCREENSHOTS_FIELD", "screenshots") or "screenshots"
     payload = {
         m3u8_field: m3u8_value,
         screenshots_field: file_paths,
@@ -193,19 +244,20 @@ def default_update_payload(m3u8_value: str, file_paths: List[str], env: Dict[str
 
 
 def maybe_update_video(m3u8_url: str, video_id: str, relative_path: str, file_paths: List[str], env: Dict[str, str]) -> Dict:
-    update_url = env.get("UPDATE_API_URL", "").strip()
-    if not update_url:
-        return {"skipped": True, "reason": "UPDATE_API_URL is empty"}
+    try:
+        update_url = resolve_api_url(env, "UPDATE_API_URL", "UPDATE_API_ROUTE")
+    except RuntimeError:
+        return {"skipped": True, "reason": "UPDATE_API_URL or COMMON_API_BASE_URL + UPDATE_API_ROUTE is empty"}
 
-    method = env.get("UPDATE_API_METHOD", "POST").strip().upper() or "POST"
-    content_type = env.get("UPDATE_CONTENT_TYPE", "application/json").strip() or "application/json"
-    cookie = env.get("UPDATE_COOKIE", "").strip() or env.get("UPLOAD_COOKIE", "").strip()
-    referer = env.get("UPDATE_REFERER", "").strip()
-    origin = env.get("UPDATE_ORIGIN", "").strip()
-    timeout = int(env.get("REQUEST_TIMEOUT", "120"))
-    body_template = env.get("UPDATE_BODY_TEMPLATE", "").strip()
+    method = get_env(env, "UPDATE_API_METHOD", "POST").upper() or "POST"
+    content_type = get_env(env, "UPDATE_CONTENT_TYPE", "application/json") or "application/json"
+    cookie = get_env(env, "UPDATE_COOKIE") or get_env(env, "UPLOAD_COOKIE")
+    referer = resolve_referer(env, "UPDATE_REFERER")
+    origin = resolve_origin(env, "UPDATE_ORIGIN")
+    timeout = int(get_env(env, "REQUEST_TIMEOUT", "120"))
+    body_template = get_env(env, "UPDATE_BODY_TEMPLATE")
 
-    update_m3u8_mode = env.get("UPDATE_M3U8_VALUE", "relative_path").strip() or "relative_path"
+    update_m3u8_mode = get_env(env, "UPDATE_M3U8_VALUE", "relative_path") or "relative_path"
     update_m3u8_value = relative_path if update_m3u8_mode == "relative_path" else m3u8_url
 
     if body_template:

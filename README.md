@@ -44,13 +44,26 @@ It is especially useful when the update API expects the relative `m3u8` path ins
 
 Copy `m3u8-shot-uploader/references/env-example.txt` to a local `.env` file and fill in your runtime values.
 
-Important fields:
+Recommended config shape:
+
+- `COMMON_API_BASE_URL`: shared API domain and common prefix
+- `UPLOAD_API_ROUTE`: upload route appended to the common base
+- `UPDATE_API_ROUTE`: update route appended to the common base
+- `WEB_ORIGIN`: browser origin used for default `Origin` and `Referer`
+
+Example:
+
+```env
+COMMON_API_BASE_URL=https://example-api.example.com/api/web
+WEB_ORIGIN=https://example-api.example.com
+UPLOAD_API_ROUTE=/admin/vid/uploadStaticBatch
+UPDATE_API_ROUTE=/admin/vid/upload/screenshots
+```
+
+If one endpoint does not follow the shared base, you can override it directly with:
 
 - `UPLOAD_API_URL`
-- `UPLOAD_COOKIE`
 - `UPDATE_API_URL`
-- `UPDATE_COOKIE`
-- `UPDATE_M3U8_VALUE`
 
 By default, the skill sends `m3u8Url` as the relative path:
 
