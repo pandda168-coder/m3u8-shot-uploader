@@ -9,12 +9,13 @@ Use this skill for an end-to-end m3u8 screenshot workflow.
 
 ## Workflow
 
-1. Read `scripts/main.py` and `.env.example` in this skill.
-2. Copy `.env.example` to `.env` and fill the API URLs, cookies, and request settings.
-3. Pass one or more full m3u8 URLs with repeated `--m3u8-url`, or provide `--input-file` with one URL per line.
-4. Let the script parse the relative m3u8 path and `videoId` from the URL path.
-5. Let the script download the stream, capture random screenshots, upload them, and call the update API.
-6. Review the final JSON summary for `total`, `successCount`, `failedCount`, and per-item results.
+1. Read `scripts/main.py` and `references/env-example.txt` in this skill.
+2. Copy `references/local-config.example.env` to `.env.local` or `.env` in the skill root for private runtime settings.
+3. Keep local runtime config out of git; `.gitignore` already excludes `.env`, `.env.local`, and temp output.
+4. Pass one or more full m3u8 URLs with repeated `--m3u8-url`, or provide `--input-file` with one URL per line.
+5. Let the script parse the relative m3u8 path and `videoId` from the URL path.
+6. Let the script download the stream, capture random screenshots, upload them, and call the update API.
+7. Review the final JSON summary for `total`, `successCount`, `failedCount`, and per-item results.
 
 ## Important details
 
@@ -26,7 +27,9 @@ Use this skill for an end-to-end m3u8 screenshot workflow.
 ## Files
 
 - `scripts/main.py`: batch-capable pipeline script
-- `references/env-example.txt`: config template to copy into `.env`
+- `references/env-example.txt`: public example config template
+- `references/local-config.example.env`: local operations config template for private runtime values
+- `.gitignore`: ignores `.env`, `.env.local`, and generated runtime files
 
 ## Run
 

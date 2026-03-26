@@ -15,18 +15,45 @@ It does the whole pipeline:
 
 ```text
 m3u8-shot-uploader/
+├── .gitignore
 ├── SKILL.md
 ├── references/
-│   └── env-example.txt
+│   ├── env-example.txt
+│   └── local-config.example.env
 └── scripts/
     └── main.py
 ```
+
+## Configuration strategy
+
+This repo separates public examples from private operations config:
+
+- `references/env-example.txt`: safe public example for docs and open-source distribution
+- `references/local-config.example.env`: local operations template for private runtime values
+- `.env` or `.env.local`: your real local config, ignored by git
+
+## Recommended config shape
+
+Use one shared API base URL plus per-endpoint routes:
+
+```env
+COMMON_API_BASE_URL=https://example-api.example.com/api/web
+WEB_ORIGIN=https://example-api.example.com
+M3U8_API_ROUTE=/admin/vid/m3u8
+UPLOAD_API_ROUTE=/admin/vid/uploadStaticBatch
+UPDATE_API_ROUTE=/admin/vid/upload/screenshots
+```
+
+If one endpoint does not follow the shared base, override it directly with:
+
+- `UPLOAD_API_URL`
+- `UPDATE_API_URL`
 
 ## What the skill is for
 
 Use this skill when you need to automate an admin workflow like:
 
-1. receive one or more full `m3u8` links
+1. receive one or more `m3u8` links or relative paths
 2. convert each video into 10 random screenshots
 3. upload those screenshots to a configured file service
 4. submit the uploaded `filePath` array back to a business API
@@ -39,37 +66,6 @@ It is especially useful when the update API expects the relative `m3u8` path ins
 - `ffmpeg`
 - `ffprobe`
 - valid API credentials or cookies
-
-## Configuration
-
-Copy `m3u8-shot-uploader/references/env-example.txt` to a local `.env` file and fill in your runtime values.
-
-Recommended config shape:
-
-- `COMMON_API_BASE_URL`: shared API domain and common prefix
-- `UPLOAD_API_ROUTE`: upload route appended to the common base
-- `UPDATE_API_ROUTE`: update route appended to the common base
-- `WEB_ORIGIN`: browser origin used for default `Origin` and `Referer`
-
-Example:
-
-```env
-COMMON_API_BASE_URL=https://example-api.example.com/api/web
-WEB_ORIGIN=https://example-api.example.com
-UPLOAD_API_ROUTE=/admin/vid/uploadStaticBatch
-UPDATE_API_ROUTE=/admin/vid/upload/screenshots
-```
-
-If one endpoint does not follow the shared base, you can override it directly with:
-
-- `UPLOAD_API_URL`
-- `UPDATE_API_URL`
-
-By default, the skill sends `m3u8Url` as the relative path:
-
-```env
-UPDATE_M3U8_VALUE=relative_path
-```
 
 ## Usage
 
@@ -94,15 +90,6 @@ From file:
 python3 m3u8-shot-uploader/scripts/main.py --input-file ./urls.txt
 ```
 
-Optional flags:
-
-```bash
-python3 m3u8-shot-uploader/scripts/main.py \
-  --input-file ./urls.txt \
-  --count 10 \
-  --workdir ./tmp
-```
-
 ## Output
 
 The script prints a JSON summary like this:
@@ -121,20 +108,9 @@ Each item in `results` contains either:
 - a full success payload with `videoId`, `relativePath`, `filePath`, and API responses
 - or a failure payload with the original `m3u8Url` and an `error`
 
-## OpenClaw integration
-
-This repo contains a real AgentSkill folder that can be:
-
-- installed into an OpenClaw workspace
-- packaged as a `.skill` file
-- published to ClawHub
-
-Packaged artifact prepared in local workspace:
-
-- `/Users/panda/.openclaw/workspace/m3u8-shot-uploader.skill`
-
 ## Notes
 
 - Do not commit live cookies or tokens.
+- Keep local runtime config in `.env` or `.env.local`.
 - The update API payload may fail if you send the full signed URL instead of the relative `m3u8` path.
 - Batch mode processes URLs sequentially and reports aggregate counts at the end.
