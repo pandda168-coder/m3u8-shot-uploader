@@ -29,7 +29,12 @@ Use this skill for an end-to-end m3u8 screenshot workflow.
 - `scripts/main.py`: batch-capable pipeline script
 - `references/env-example.txt`: public example config template
 - `references/local-config.example.env`: local operations config template for private runtime values
+- `references/quickstart.md`: first-install guide for new users
 - `.gitignore`: ignores `.env`, `.env.local`, and generated runtime files
+
+## First-time setup
+
+Read `references/quickstart.md` when onboarding a new user or installing the skill on a new machine. It covers dependency checks, local config setup, required fields, and the first verification run.
 
 ## Run
 

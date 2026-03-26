@@ -67,6 +67,19 @@ It is especially useful when the update API expects the relative `m3u8` path ins
 - `ffprobe`
 - valid API credentials or cookies
 
+## First-time setup
+
+If this is the first time someone installs the skill, follow:
+
+- `m3u8-shot-uploader/references/quickstart.md`
+
+That guide walks through:
+
+- checking `python3` / `ffmpeg` / `ffprobe`
+- copying `local-config.example.env` to `.env.local`
+- filling the minimum required private config
+- doing one verification run before batch processing
+
 ## Usage
 
 Single URL:
