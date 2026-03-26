@@ -336,7 +336,7 @@ def main() -> int:
     parser.add_argument("--input-file", help="Text file with one m3u8 URL per line")
     parser.add_argument("--count", type=int, default=10, help="Number of screenshots to capture")
     parser.add_argument("--workdir", default=str(DEFAULT_WORKDIR), help="Working directory for temp files")
-    parser.add_argument("--env-file", default=str(ROOT / ".env"), help="Path to env config file")
+    parser.add_argument("--env-file", default=str(ROOT / ".env"), help="Fallback env config file path; .env.local in the skill root is loaded first when present")
     args = parser.parse_args()
 
     require_tool("ffmpeg")
@@ -370,6 +370,19 @@ def main() -> int:
         "total": len(urls),
         "successCount": success_count,
         "failedCount": failed_count,
+        "results": results,
+    }
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return 0 if failed_count == 0 else 1
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        raise
+"failedCount": failed_count,
         "results": results,
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))

@@ -26,7 +26,7 @@ In the skill root, copy the local config example to a real local config file:
 cp references/local-config.example.env .env.local
 ```
 
-You can also use `.env`, but `.env.local` is recommended for first-time setup.
+You can also use `.env`, but `.env.local` is recommended for first-time setup and is now the preferred file the script reads first.
 
 ## 3. Fill the required config
 
