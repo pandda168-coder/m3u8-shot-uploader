@@ -1,16 +1,16 @@
-UPLOAD_API_URL=https://jhsht.ruishengces.com/api/web/admin/vid/uploadStaticBatch
-UPLOAD_COOKIE=
-UPLOAD_REFERER=https://jhsht.ruishengces.com/
-UPLOAD_ORIGIN=https://jhsht.ruishengces.com
+UPLOAD_API_URL=https://example-api.example.com/api/web/admin/vid/uploadStaticBatch
+UPLOAD_COOKIE=your_upload_cookie_here
+UPLOAD_REFERER=https://example-api.example.com/
+UPLOAD_ORIGIN=https://example-api.example.com
 UPLOAD_FIELD_NAME=upload[]
 REQUEST_TIMEOUT=120
 
-UPDATE_API_URL=https://jhsht.ruishengces.com/api/web/admin/vid/upload/screenshots
+UPDATE_API_URL=https://example-api.example.com/api/web/admin/vid/upload/screenshots
 UPDATE_API_METHOD=POST
 UPDATE_CONTENT_TYPE=application/json
-UPDATE_COOKIE=
-UPDATE_REFERER=https://jhsht.ruishengces.com/
-UPDATE_ORIGIN=https://jhsht.ruishengces.com
+UPDATE_COOKIE=your_update_cookie_here
+UPDATE_REFERER=https://example-api.example.com/
+UPDATE_ORIGIN=https://example-api.example.com
 UPDATE_M3U8_URL_FIELD=m3u8Url
 UPDATE_SCREENSHOTS_FIELD=screenshots
 UPDATE_M3U8_VALUE=relative_path
