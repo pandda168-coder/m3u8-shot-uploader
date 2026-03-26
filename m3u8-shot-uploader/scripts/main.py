@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_WORKDIR = ROOT / "tmp"
 
 
-def load_env(env_path: Path) -> Dict[str, str]:
+def parse_env_file(env_path: Path) -> Dict[str, str]:
     env: Dict[str, str] = {}
     if not env_path.exists():
         return env
@@ -28,6 +28,20 @@ def load_env(env_path: Path) -> Dict[str, str]:
         key, value = line.split("=", 1)
         env[key.strip()] = value.strip()
     return env
+
+
+def load_env(env_path: Path) -> Dict[str, str]:
+    # Prefer local private config, then fall back to the explicitly requested file.
+    candidates = [env_path.parent / ".env.local", env_path]
+    merged: Dict[str, str] = {}
+    seen = set()
+    for candidate in candidates:
+        candidate = candidate.resolve()
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        merged.update(parse_env_file(candidate))
+    return merged
 
 
 def require_tool(name: str) -> None:
@@ -370,19 +384,6 @@ def main() -> int:
         "total": len(urls),
         "successCount": success_count,
         "failedCount": failed_count,
-        "results": results,
-    }
-    print(json.dumps(summary, ensure_ascii=False, indent=2))
-    return 0 if failed_count == 0 else 1
-
-
-if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except Exception as exc:
-        print(json.dumps({"error": str(exc)}, ensure_ascii=False), file=sys.stderr)
-        raise
-"failedCount": failed_count,
         "results": results,
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
