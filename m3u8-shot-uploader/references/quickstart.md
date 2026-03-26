@@ -38,6 +38,8 @@ WEB_ORIGIN=https://your-private-api.example.com
 M3U8_API_ROUTE=/admin/vid/m3u8
 UPLOAD_API_ROUTE=/admin/vid/uploadStaticBatch
 UPDATE_API_ROUTE=/admin/vid/upload/screenshots
+DEFAULT_SCREENSHOT_COUNT=10
+DEFAULT_WORKERS=5
 UPLOAD_COOKIE=your_private_upload_cookie_here
 UPDATE_COOKIE=your_private_update_cookie_here
 ```
@@ -58,7 +60,9 @@ The script supports two screenshot modes:
 Recommended defaults:
 
 - short or sensitive videos: `safe`
-- long videos or batch operations: `fast --workers 4`
+- long videos or batch operations: `fast`
+- default screenshot count comes from `.env.local` via `DEFAULT_SCREENSHOT_COUNT=10`
+- default parallelism comes from `.env.local` via `DEFAULT_WORKERS=5`
 
 ## 5. Decide how to provide input
 
@@ -92,8 +96,10 @@ python3 scripts/main.py --m3u8-url 'https://example.com/path/video.m3u8?token=xx
 Fast mode:
 
 ```bash
-python3 scripts/main.py --m3u8-url 'https://example.com/path/video.m3u8?token=xxx' --mode fast --workers 4
+python3 scripts/main.py --m3u8-url 'https://example.com/path/video.m3u8?token=xxx' --mode fast
 ```
+
+Command line values override `.env.local` defaults when both are present.
 
 Expected result:
 
@@ -111,6 +117,7 @@ The script prints a final JSON summary with:
 - `failedCount`
 - `mode`
 - `workers`
+- `count`
 - `results`
 
 If `failedCount > 0`, inspect the per-item `error` field first.

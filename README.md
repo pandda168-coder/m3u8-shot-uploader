@@ -44,6 +44,8 @@ WEB_ORIGIN=https://example-api.example.com
 M3U8_API_ROUTE=/admin/vid/m3u8
 UPLOAD_API_ROUTE=/admin/vid/uploadStaticBatch
 UPDATE_API_ROUTE=/admin/vid/upload/screenshots
+DEFAULT_SCREENSHOT_COUNT=10
+DEFAULT_WORKERS=5
 ```
 
 If one endpoint does not follow the shared base, override it directly with:
@@ -56,7 +58,7 @@ If one endpoint does not follow the shared base, override it directly with:
 Use this skill when you need to automate an admin workflow like:
 
 1. receive one or more `m3u8` links or relative paths
-2. convert each video into 10 random screenshots
+2. convert each video into screenshots
 3. upload those screenshots to a configured file service
 4. submit the uploaded `filePath` array back to a business API
 
@@ -78,6 +80,8 @@ That guide walks through:
 
 ## Usage
 
+Fast mode uses `.env.local` defaults for screenshot count and workers unless you override them on the command line.
+
 Safe mode:
 
 ```bash
@@ -91,14 +95,23 @@ Fast mode:
 ```bash
 python3 m3u8-shot-uploader/scripts/main.py \
   --m3u8-url 'https://example.com/path/video.m3u8?token=xxx' \
+  --mode fast
+```
+
+Override count and workers when needed:
+
+```bash
+python3 m3u8-shot-uploader/scripts/main.py \
+  --m3u8-url 'https://example.com/path/video.m3u8?token=xxx' \
   --mode fast \
-  --workers 4
+  --count 12 \
+  --workers 8
 ```
 
 Batch file:
 
 ```bash
-python3 m3u8-shot-uploader/scripts/main.py --input-file ./urls.txt --mode fast --workers 4
+python3 m3u8-shot-uploader/scripts/main.py --input-file ./urls.txt --mode fast
 ```
 
 ## Output
@@ -111,7 +124,8 @@ The script prints a JSON summary like this:
   "successCount": 2,
   "failedCount": 0,
   "mode": "fast",
-  "workers": 4,
+  "workers": 5,
+  "count": 10,
   "results": []
 }
 ```
@@ -127,4 +141,5 @@ Each item in `results` contains either:
 - Keep local runtime config in `.env` or `.env.local`.
 - `fast` mode is faster for long videos, but some streams may not seek well.
 - `safe` mode is slower, but more conservative because it downloads the full video first.
+- Command line values override `.env.local` defaults.
 - Batch mode processes URLs sequentially and reports aggregate counts at the end.

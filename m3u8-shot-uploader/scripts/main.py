@@ -331,6 +331,7 @@ def process_one(m3u8_url: str, count: int, base_workdir: Path, env: Dict[str, st
         "ok": True,
         "mode": mode,
         "workers": workers,
+        "count": count,
         "videoId": video_id,
         "relativePath": relative_path,
         "m3u8Url": m3u8_url,
@@ -364,10 +365,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Download m3u8 videos, capture screenshots, upload them, and call update API")
     parser.add_argument("--m3u8-url", action="append", default=[], help="Full m3u8 URL, repeatable")
     parser.add_argument("--input-file", help="Text file with one m3u8 URL per line")
-    parser.add_argument("--count", type=int, default=10, help="Number of screenshots to capture")
+    parser.add_argument("--count", type=int, help="Number of screenshots to capture")
     parser.add_argument("--workdir", default=str(DEFAULT_WORKDIR), help="Working directory for temp files")
     parser.add_argument("--mode", choices=["safe", "fast"], default="safe", help="safe downloads the full video first; fast captures directly from the m3u8 stream")
-    parser.add_argument("--workers", type=int, default=4, help="Parallel screenshot worker count")
+    parser.add_argument("--workers", type=int, help="Parallel screenshot worker count")
     parser.add_argument("--env-file", default=str(ROOT / ".env"), help="Fallback env config file path; .env.local in the skill root is loaded first when present")
     args = parser.parse_args()
 
@@ -377,15 +378,17 @@ def main() -> int:
     env = load_env(Path(args.env_file))
     urls = collect_urls(args)
     base_workdir = Path(args.workdir)
+    screenshot_count = args.count if args.count is not None else int(get_env(env, "DEFAULT_SCREENSHOT_COUNT", "10"))
+    worker_count = args.workers if args.workers is not None else int(get_env(env, "DEFAULT_WORKERS", "5"))
 
     results: List[Dict] = []
     success_count = 0
     failed_count = 0
 
     for index, m3u8_url in enumerate(urls, start=1):
-        print(json.dumps({"stage": "start", "index": index, "total": len(urls), "mode": args.mode, "workers": args.workers, "m3u8Url": m3u8_url}, ensure_ascii=False))
+        print(json.dumps({"stage": "start", "index": index, "total": len(urls), "mode": args.mode, "workers": worker_count, "count": screenshot_count, "m3u8Url": m3u8_url}, ensure_ascii=False))
         try:
-            result = process_one(m3u8_url, args.count, base_workdir, env, args.mode, max(1, args.workers))
+            result = process_one(m3u8_url, screenshot_count, base_workdir, env, args.mode, max(1, worker_count))
             results.append(result)
             success_count += 1
         except Exception as exc:
@@ -393,7 +396,8 @@ def main() -> int:
             failure = {
                 "ok": False,
                 "mode": args.mode,
-                "workers": args.workers,
+                "workers": worker_count,
+                "count": screenshot_count,
                 "m3u8Url": m3u8_url,
                 "error": str(exc),
             }
@@ -405,7 +409,8 @@ def main() -> int:
         "successCount": success_count,
         "failedCount": failed_count,
         "mode": args.mode,
-        "workers": args.workers,
+        "workers": worker_count,
+        "count": screenshot_count,
         "results": results,
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))

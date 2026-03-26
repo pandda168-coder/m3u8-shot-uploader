@@ -2,6 +2,8 @@ COMMON_API_BASE_URL=https://example-api.example.com/api/web
 WEB_ORIGIN=https://example-api.example.com
 
 UPLOAD_API_ROUTE=/admin/vid/uploadStaticBatch
+DEFAULT_SCREENSHOT_COUNT=10
+DEFAULT_WORKERS=5
 UPLOAD_COOKIE=your_upload_cookie_here
 UPLOAD_REFERER=
 UPLOAD_ORIGIN=
