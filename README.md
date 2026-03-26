@@ -5,8 +5,9 @@ A reusable OpenClaw skill for processing one or more `m3u8` video URLs into scre
 It does the whole pipeline:
 
 - parse the relative `m3u8` path and `videoId`
-- download the video with `ffmpeg`
-- extract random screenshots
+- download the video with `ffmpeg` in `safe` mode
+- or capture screenshots directly from the stream in `fast` mode
+- extract screenshots in parallel workers
 - batch upload screenshots to an image API
 - call a second API to save screenshot metadata
 - print final success and failure counts for batch runs
@@ -19,7 +20,8 @@ m3u8-shot-uploader/
 ├── SKILL.md
 ├── references/
 │   ├── env-example.txt
-│   └── local-config.example.env
+│   ├── local-config.example.env
+│   └── quickstart.md
 └── scripts/
     └── main.py
 ```
@@ -60,13 +62,6 @@ Use this skill when you need to automate an admin workflow like:
 
 It is especially useful when the update API expects the relative `m3u8` path instead of the full signed URL.
 
-## Requirements
-
-- Python 3
-- `ffmpeg`
-- `ffprobe`
-- valid API credentials or cookies
-
 ## First-time setup
 
 If this is the first time someone installs the skill, follow:
@@ -78,29 +73,32 @@ That guide walks through:
 - checking `python3` / `ffmpeg` / `ffprobe`
 - copying `local-config.example.env` to `.env.local`
 - filling the minimum required private config
+- choosing `safe` or `fast` mode
 - doing one verification run before batch processing
 
 ## Usage
 
-Single URL:
+Safe mode:
 
 ```bash
 python3 m3u8-shot-uploader/scripts/main.py \
-  --m3u8-url 'https://example.com/path/video.m3u8?token=xxx'
+  --m3u8-url 'https://example.com/path/video.m3u8?token=xxx' \
+  --mode safe
 ```
 
-Multiple URLs:
+Fast mode:
 
 ```bash
 python3 m3u8-shot-uploader/scripts/main.py \
-  --m3u8-url 'https://example.com/a.m3u8?token=xxx' \
-  --m3u8-url 'https://example.com/b.m3u8?token=yyy'
+  --m3u8-url 'https://example.com/path/video.m3u8?token=xxx' \
+  --mode fast \
+  --workers 4
 ```
 
-From file:
+Batch file:
 
 ```bash
-python3 m3u8-shot-uploader/scripts/main.py --input-file ./urls.txt
+python3 m3u8-shot-uploader/scripts/main.py --input-file ./urls.txt --mode fast --workers 4
 ```
 
 ## Output
@@ -112,6 +110,8 @@ The script prints a JSON summary like this:
   "total": 2,
   "successCount": 2,
   "failedCount": 0,
+  "mode": "fast",
+  "workers": 4,
   "results": []
 }
 ```
@@ -125,5 +125,6 @@ Each item in `results` contains either:
 
 - Do not commit live cookies or tokens.
 - Keep local runtime config in `.env` or `.env.local`.
-- The update API payload may fail if you send the full signed URL instead of the relative `m3u8` path.
+- `fast` mode is faster for long videos, but some streams may not seek well.
+- `safe` mode is slower, but more conservative because it downloads the full video first.
 - Batch mode processes URLs sequentially and reports aggregate counts at the end.

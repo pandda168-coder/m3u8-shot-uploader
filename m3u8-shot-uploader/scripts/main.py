@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import concurrent.futures
 import json
 import mimetypes
 import random
@@ -137,7 +138,7 @@ def download_video(m3u8_url: str, output_path: Path) -> None:
     run(cmd)
 
 
-def probe_duration(video_path: Path) -> float:
+def probe_duration_from_source(source: str) -> float:
     cmd = [
         "ffprobe",
         "-v",
@@ -146,7 +147,7 @@ def probe_duration(video_path: Path) -> float:
         "format=duration",
         "-of",
         "default=noprint_wrappers=1:nokey=1",
-        str(video_path),
+        source,
     ]
     result = run(cmd)
     duration = float(result.stdout.strip())
@@ -170,27 +171,36 @@ def pick_timestamps(duration: float, count: int) -> List[float]:
     return [round(min(ts, max(duration - 0.1, 0.0)), 3) for ts in samples]
 
 
-def capture_screenshots(video_path: Path, output_dir: Path, timestamps: List[float]) -> List[Path]:
+def capture_one_screenshot(source: str, shot_path: Path, timestamp: float) -> Path:
+    shot_path.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-loglevel",
+        "error",
+        "-ss",
+        str(timestamp),
+        "-i",
+        source,
+        "-frames:v",
+        "1",
+        str(shot_path),
+    ]
+    run(cmd)
+    return shot_path
+
+
+def capture_screenshots_parallel(source: str, output_dir: Path, timestamps: List[float], workers: int) -> List[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    shots: List[Path] = []
-    for index, ts in enumerate(timestamps, start=1):
-        shot_path = output_dir / f"{index:02d}.png"
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-loglevel",
-            "error",
-            "-ss",
-            str(ts),
-            "-i",
-            str(video_path),
-            "-frames:v",
-            "1",
-            str(shot_path),
+    shot_paths = [output_dir / f"{index:02d}.png" for index in range(1, len(timestamps) + 1)]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, workers)) as executor:
+        futures = [
+            executor.submit(capture_one_screenshot, source, shot_path, ts)
+            for shot_path, ts in zip(shot_paths, timestamps)
         ]
-        run(cmd)
-        shots.append(shot_path)
-    return shots
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
+    return shot_paths
 
 
 def build_multipart_body(field_name: str, files: List[Path], boundary: str) -> Tuple[bytes, str]:
@@ -299,26 +309,32 @@ def maybe_update_video(m3u8_url: str, video_id: str, relative_path: str, file_pa
     return send_request(update_url, method, headers, body, timeout)
 
 
-def process_one(m3u8_url: str, count: int, base_workdir: Path, env: Dict[str, str]) -> Dict:
+def process_one(m3u8_url: str, count: int, base_workdir: Path, env: Dict[str, str], mode: str, workers: int) -> Dict:
     relative_path, video_id = parse_video_info(m3u8_url)
     workdir = base_workdir.resolve() / video_id
     video_path = workdir / f"{video_id}.mp4"
     shots_dir = workdir / "shots"
 
-    download_video(m3u8_url, video_path)
-    duration = probe_duration(video_path)
+    source = m3u8_url
+    if mode == "safe":
+        download_video(m3u8_url, video_path)
+        source = str(video_path)
+
+    duration = probe_duration_from_source(source)
     timestamps = pick_timestamps(duration, count)
-    shots = capture_screenshots(video_path, shots_dir, timestamps)
+    shots = capture_screenshots_parallel(source, shots_dir, timestamps, workers)
     upload_response = upload_files(shots, env)
     file_paths = upload_response.get("data", {}).get("filePath", [])
     update_response = maybe_update_video(m3u8_url, video_id, relative_path, file_paths, env)
 
     return {
         "ok": True,
+        "mode": mode,
+        "workers": workers,
         "videoId": video_id,
         "relativePath": relative_path,
         "m3u8Url": m3u8_url,
-        "videoPath": str(video_path),
+        "videoPath": str(video_path) if mode == "safe" else None,
         "duration": duration,
         "timestamps": timestamps,
         "shots": [str(p) for p in shots],
@@ -350,6 +366,8 @@ def main() -> int:
     parser.add_argument("--input-file", help="Text file with one m3u8 URL per line")
     parser.add_argument("--count", type=int, default=10, help="Number of screenshots to capture")
     parser.add_argument("--workdir", default=str(DEFAULT_WORKDIR), help="Working directory for temp files")
+    parser.add_argument("--mode", choices=["safe", "fast"], default="safe", help="safe downloads the full video first; fast captures directly from the m3u8 stream")
+    parser.add_argument("--workers", type=int, default=4, help="Parallel screenshot worker count")
     parser.add_argument("--env-file", default=str(ROOT / ".env"), help="Fallback env config file path; .env.local in the skill root is loaded first when present")
     args = parser.parse_args()
 
@@ -365,15 +383,17 @@ def main() -> int:
     failed_count = 0
 
     for index, m3u8_url in enumerate(urls, start=1):
-        print(json.dumps({"stage": "start", "index": index, "total": len(urls), "m3u8Url": m3u8_url}, ensure_ascii=False))
+        print(json.dumps({"stage": "start", "index": index, "total": len(urls), "mode": args.mode, "workers": args.workers, "m3u8Url": m3u8_url}, ensure_ascii=False))
         try:
-            result = process_one(m3u8_url, args.count, base_workdir, env)
+            result = process_one(m3u8_url, args.count, base_workdir, env, args.mode, max(1, args.workers))
             results.append(result)
             success_count += 1
         except Exception as exc:
             failed_count += 1
             failure = {
                 "ok": False,
+                "mode": args.mode,
+                "workers": args.workers,
                 "m3u8Url": m3u8_url,
                 "error": str(exc),
             }
@@ -384,6 +404,8 @@ def main() -> int:
         "total": len(urls),
         "successCount": success_count,
         "failedCount": failed_count,
+        "mode": args.mode,
+        "workers": args.workers,
         "results": results,
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))

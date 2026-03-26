@@ -48,7 +48,19 @@ Notes:
 - If one API does not follow the shared base URL, set `UPLOAD_API_URL` or `UPDATE_API_URL` directly.
 - Keep real cookies and tokens only in `.env.local` or `.env`.
 
-## 4. Decide how to provide input
+## 4. Choose a mode
+
+The script supports two screenshot modes:
+
+- `safe`: download the full video first, then capture screenshots
+- `fast`: capture screenshots directly from the `m3u8` stream
+
+Recommended defaults:
+
+- short or sensitive videos: `safe`
+- long videos or batch operations: `fast --workers 4`
+
+## 5. Decide how to provide input
 
 You can run the script in two ways:
 
@@ -67,29 +79,43 @@ Batch file:
 python3 scripts/main.py --input-file ./urls.txt
 ```
 
-## 5. Run one verification task first
+## 6. Run one verification task first
 
 Before batch processing, test one known-good video.
 
+Safe mode:
+
+```bash
+python3 scripts/main.py --m3u8-url 'https://example.com/path/video.m3u8?token=xxx' --mode safe
+```
+
+Fast mode:
+
+```bash
+python3 scripts/main.py --m3u8-url 'https://example.com/path/video.m3u8?token=xxx' --mode fast --workers 4
+```
+
 Expected result:
 
-- video downloads successfully
+- video or stream is readable
 - 10 screenshots are created
 - upload API returns `code: 200`
 - update API returns `code: 200`
 
-## 6. Check output
+## 7. Check output
 
 The script prints a final JSON summary with:
 
 - `total`
 - `successCount`
 - `failedCount`
+- `mode`
+- `workers`
 - `results`
 
 If `failedCount > 0`, inspect the per-item `error` field first.
 
-## 7. Common first-install mistakes
+## 8. Common first-install mistakes
 
 - `ffmpeg` not installed
 - forgot to copy `local-config.example.env` into `.env.local`
@@ -97,3 +123,4 @@ If `failedCount > 0`, inspect the per-item `error` field first.
 - wrong `COMMON_API_BASE_URL`
 - update API expects relative `m3u8` path, not full signed URL
 - public example file edited, but local `.env.local` not updated
+- using `fast` mode against a stream source that does not seek well
